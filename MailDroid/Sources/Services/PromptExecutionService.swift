@@ -141,7 +141,7 @@ struct PromptExecutionService {
     ///
     /// Each email includes its subject, sender, date, and body
     /// truncated to approximately 500 characters.
-    private func formatEmails(_ emails: [Email]) -> String {
+    func formatEmails(_ emails: [Email]) -> String {
         if emails.isEmpty {
             return "[No emails found in the selected time range.]"
         }
@@ -170,7 +170,7 @@ struct PromptExecutionService {
 
     /// Truncates a body string to the given maximum length, appending
     /// an ellipsis when truncation occurs.
-    private func truncateBody(_ body: String, maxLength: Int) -> String {
+    func truncateBody(_ body: String, maxLength: Int) -> String {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if trimmed.count <= maxLength {
@@ -187,7 +187,7 @@ struct PromptExecutionService {
     // MARK: - Prompt Building
 
     /// Builds the user content string sent to the LLM.
-    private func buildUserContent(
+    func buildUserContent(
         promptText: String,
         formattedEmails: String,
         emailCount: Int
@@ -213,7 +213,7 @@ struct PromptExecutionService {
     /// line and returns a boolean indicating actionability. If the
     /// marker is missing, the method defaults to `true` (actionable)
     /// as the safer assumption for notifications.
-    private func parseActionability(
+    func parseActionability(
         _ response: String
     ) -> (cleanedResponse: String, isActionable: Bool) {
         let lines = response.components(separatedBy: .newlines)

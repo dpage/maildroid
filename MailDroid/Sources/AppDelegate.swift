@@ -1,28 +1,9 @@
 import SwiftUI
 import AppKit
-import Combine
-
-// MARK: - App Entry Point
-
-@main
-struct MailDroidApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
-    var body: some Scene {
-        // Empty WindowGroup - the app is managed entirely via AppDelegate
-        WindowGroup {
-            EmptyView()
-                .frame(width: 0, height: 0)
-                .hidden()
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-    }
-}
 
 // MARK: - App Delegate
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+public class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var popover: NSPopover?
     var appState = AppState()
@@ -30,7 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var executionHistoryWindow: NSWindow?
     var resultPopupController: ResultPopupWindowController?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    public func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         setupNotificationObservers()
 
@@ -177,44 +158,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 }
-
-// MARK: - App State
-
-class AppState: ObservableObject {
-    @Published var accounts: [GmailAccount] = []
-    @Published var promptConfigs: [PromptConfig] = []
-    @Published var appSettings: AppSettings = AppSettings.load()
-    @Published var executionHistory: [PromptExecution] = []
-    @Published var isLoading: Bool = false
-    @Published var selectedSettingsTab: SettingsTab = .general
-
-    var cancellables = Set<AnyCancellable>()
-
-    init() {
-        loadState()
-    }
-
-    func loadState() {
-        accounts = GmailAccount.loadAll()
-        promptConfigs = PromptConfig.loadAll()
-        appSettings = AppSettings.load()
-        executionHistory = PromptExecution.loadAll()
-    }
-
-    func saveAccounts() {
-        GmailAccount.saveAll(accounts)
-    }
-
-    func savePromptConfigs() {
-        PromptConfig.saveAll(promptConfigs)
-    }
-
-    func saveSettings() {
-        appSettings.save()
-    }
-
-    func saveExecutionHistory() {
-        PromptExecution.saveAll(executionHistory)
-    }
-}
-

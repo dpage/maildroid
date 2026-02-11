@@ -10,9 +10,9 @@ let package = Package(
         .executable(name: "MailDroid", targets: ["MailDroid"])
     ],
     targets: [
-        .executableTarget(
-            name: "MailDroid",
-            path: "MailDroid/Sources",
+        .target(
+            name: "MailDroidLib",
+            path: "Maildroid/Sources",
             exclude: ["Config.template.swift"],
             resources: [
                 .process("../Info.plist")
@@ -23,6 +23,16 @@ let package = Package(
                 .linkedFramework("AuthenticationServices"),
                 .linkedFramework("ServiceManagement")
             ]
+        ),
+        .executableTarget(
+            name: "MailDroid",
+            dependencies: ["MailDroidLib"],
+            path: "Maildroid/AppEntry"
+        ),
+        .testTarget(
+            name: "MailDroidTests",
+            dependencies: ["MailDroidLib"],
+            path: "Tests/MailDroidTests"
         )
     ]
 )
