@@ -146,6 +146,20 @@ The primary agent follows this workflow for all tasks:
 **Remember:** The primary agent coordinates but never implements.
 Every file change must come from a sub-agent.
 
+## Plans
+
+Save all plan documents in the `.claude/plans/` directory.
+Follow these conventions when creating plan files:
+
+- Name each file to reflect the work the plan describes.
+
+- Use lowercase words separated by hyphens for file names.
+
+- Include a meaningful summary of the scope in the name
+  (e.g., `add-oauth-flow.md`, `refactor-menu-bar.md`).
+
+- Do not use generic names like `plan.md` or `draft.md`.
+
 ## Documentation
 
 ### Writing Style
