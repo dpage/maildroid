@@ -1,0 +1,361 @@
+name: Direct Distribution Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '0.0.1'
+
+env:
+  APP_NAME: MailDroid
+  BUNDLE_ID: page.conx.maildroid
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Direct Distribution Release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from tag (remove 'v' prefix)
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg
+
+      - name: Generate Config.swift with secrets
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          # Validate secrets are set
+          if [ -z "$GOOGLE_CLIENT_ID" ]; then
+            echo "Error: GOOGLE_CLIENT_ID secret is not set"
+            exit 1
+          fi
+
+          # Generate Config.swift from template with real credentials
+          cat > MailDroid/Sources/Config.swift << 'SWIFT_EOF'
+          import Foundation
+
+          struct Config {
+              // IMPORTANT: Copy this file to Config.swift and replace with your own Google OAuth credentials
+              // Get them from: https://console.cloud.google.com/
+              // DO NOT commit Config.swift - it contains your secrets!
+
+              static let googleClientID = "PLACEHOLDER_CLIENT_ID"
+
+              // Client secret - required for "Web application" type OAuth credentials
+              // Leave empty if using "iOS" type credentials (recommended for security)
+              static let googleClientSecret = "PLACEHOLDER_CLIENT_SECRET"
+
+              // The redirect URI uses the custom URL scheme for OAuth callback
+              static var googleRedirectURI: String {
+                  return "\(reversedClientID):/oauth2callback"
+              }
+
+              // Reversed client ID (used as URL scheme for OAuth callback)
+              static var reversedClientID: String {
+                  // Reverse the client ID: xxx.apps.googleusercontent.com -> com.googleusercontent.apps.xxx
+                  let parts = googleClientID.components(separatedBy: ".")
+                  return parts.reversed().joined(separator: ".")
+              }
+
+              // OAuth scopes for Gmail
+              static let googleScopes = [
+                  "https://www.googleapis.com/auth/gmail.readonly",
+                  "https://www.googleapis.com/auth/gmail.modify",
+                  "https://www.googleapis.com/auth/userinfo.email",
+                  "https://www.googleapis.com/auth/userinfo.profile"
+              ]
+
+              // Google OAuth endpoints
+              static let googleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
+              static let googleTokenURL = "https://oauth2.googleapis.com/token"
+              static let googleUserInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
+              static let gmailBaseURL = "https://gmail.googleapis.com/gmail/v1"
+
+              // App bundle identifier
+              static let bundleIdentifier = "page.conx.maildroid"
+          }
+          SWIFT_EOF
+
+          # Replace placeholders with actual secrets
+          sed -i '' "s|PLACEHOLDER_CLIENT_ID|$GOOGLE_CLIENT_ID|g" MailDroid/Sources/Config.swift
+          sed -i '' "s|PLACEHOLDER_CLIENT_SECRET|$GOOGLE_CLIENT_SECRET|g" MailDroid/Sources/Config.swift
+
+          echo "Config.swift generated successfully"
+
+      - name: Update version in Info.plist
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" MailDroid/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" MailDroid/Info.plist
+          echo "Updated Info.plist to version $VERSION"
+
+      # Code signing setup (only if certificate is provided)
+      - name: Check if code signing is configured
+        id: signing
+        run: |
+          if [ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+            echo "Code signing not configured - building unsigned"
+          fi
+
+      - name: Install Apple certificate
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Decode certificate
+          echo -n "$APPLE_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # Verify certificate
+          echo "Available signing identities:"
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+
+      - name: Build Release
+        run: |
+          # Build release binary with Swift Package Manager
+          swift build -c release
+
+      - name: Create App Bundle
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP_DIR="MailDroid.app/Contents"
+          MACOS_DIR="$APP_DIR/MacOS"
+          RESOURCES_DIR="$APP_DIR/Resources"
+
+          # Create app bundle structure
+          mkdir -p "$MACOS_DIR"
+          mkdir -p "$RESOURCES_DIR"
+
+          # Copy the built binary
+          BINARY_PATH=$(swift build -c release --show-bin-path)/MailDroid
+          cp "$BINARY_PATH" "$MACOS_DIR/MailDroid"
+
+          # Create Info.plist for the bundle
+          cp MailDroid/Info.plist "$APP_DIR/Info.plist"
+
+          # Replace variables in Info.plist with actual values
+          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable MailDroid" "$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier page.conx.maildroid" "$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName MailDroid" "$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_DIR/Info.plist"
+
+          # Copy assets if they exist
+          if [ -d "MailDroid/Assets.xcassets" ]; then
+            # Compile asset catalog
+            xcrun actool MailDroid/Assets.xcassets \
+              --compile "$RESOURCES_DIR" \
+              --platform macosx \
+              --minimum-deployment-target 13.0 \
+              --app-icon AppIcon \
+              --output-partial-info-plist /dev/null 2>/dev/null || true
+          fi
+
+          echo "App bundle created at MailDroid.app"
+          ls -la "$MACOS_DIR"
+
+      - name: Sign App
+        if: steps.signing.outputs.enabled == 'true'
+        run: |
+          APP_PATH="MailDroid.app"
+
+          echo "Signing app with Developer ID..."
+          codesign --force --deep --sign "Developer ID Application" \
+            --entitlements MailDroid/MailDroid.entitlements \
+            --options runtime \
+            --timestamp \
+            "$APP_PATH"
+
+          echo "Verifying signature..."
+          codesign -vvv --deep --strict "$APP_PATH"
+
+      - name: Notarize app
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP_PATH="MailDroid.app"
+
+          # Create a zip for notarization
+          echo "Creating zip for notarization..."
+          ditto -c -k --keepParent "$APP_PATH" "MailDroid-notarize.zip"
+
+          # Submit for notarization
+          echo "Submitting for notarization..."
+          xcrun notarytool submit "MailDroid-notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 30m
+
+          # Staple the notarization ticket
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "$APP_PATH"
+
+          # Verify stapling
+          echo "Verifying stapled app..."
+          xcrun stapler validate "$APP_PATH"
+          spctl -a -vvv -t install "$APP_PATH"
+
+          # Clean up
+          rm "MailDroid-notarize.zip"
+
+          echo "Notarization complete!"
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP_PATH="MailDroid.app"
+
+          # Verify the app was built
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Error: App not found at $APP_PATH"
+            exit 1
+          fi
+
+          # Create release directory
+          mkdir -p release
+
+          # Create a professional DMG with create-dmg
+          DMG_NAME="MailDroid-$VERSION-macOS.dmg"
+
+          # create-dmg will fail if DMG already exists
+          rm -f "release/$DMG_NAME"
+
+          create-dmg \
+            --volname "MailDroid $VERSION" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "MailDroid.app" 150 185 \
+            --hide-extension "MailDroid.app" \
+            --app-drop-link 450 185 \
+            --no-internet-enable \
+            "release/$DMG_NAME" \
+            "$APP_PATH" \
+            || true  # create-dmg returns non-zero even on success sometimes
+
+          # Verify DMG was created
+          if [ ! -f "release/$DMG_NAME" ]; then
+            echo "create-dmg failed, falling back to basic DMG creation"
+            DMG_STAGING="dmg_staging"
+            mkdir -p "$DMG_STAGING"
+            cp -R "$APP_PATH" "$DMG_STAGING/"
+            ln -s /Applications "$DMG_STAGING/Applications"
+            hdiutil create -volname "MailDroid $VERSION" \
+              -srcfolder "$DMG_STAGING" \
+              -ov -format UDZO \
+              "release/$DMG_NAME"
+            rm -rf "$DMG_STAGING"
+          fi
+
+          # Also create a zip for those who prefer it
+          zip -r "release/MailDroid-$VERSION-macOS.zip" MailDroid.app
+
+          echo "Created release artifacts:"
+          ls -la release/
+
+      - name: Sign DMG
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_PATH="release/MailDroid-$VERSION-macOS.dmg"
+
+          # Sign the DMG
+          codesign --force --sign "Developer ID Application" --timestamp "$DMG_PATH"
+
+          # Notarize the DMG
+          echo "Notarizing DMG..."
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 30m
+
+          # Staple the DMG
+          xcrun stapler staple "$DMG_PATH"
+
+          echo "DMG signed and notarized!"
+
+      - name: Clean up keychain
+        if: always() && steps.signing.outputs.enabled == 'true'
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MailDroid-${{ steps.version.outputs.version }}-direct
+          path: release/MailDroid-*
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/MailDroid-*
+          draft: false
+          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+          generate_release_notes: true
+          body: |
+            ## Direct Download Release
+
+            This is the Developer ID signed release for direct distribution (outside the Mac App Store).
+
+            ### Installation
+            1. Download the DMG file
+            2. Open the DMG
+            3. Drag MailDroid to your Applications folder
+            4. Launch MailDroid from Applications
+
+            **Note:** On first launch, you may need to right-click and select "Open" to bypass Gatekeeper.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

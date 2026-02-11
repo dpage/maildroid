@@ -1,0 +1,24 @@
+# Build verification workflow for MailDroid
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
+
+name: Swift
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Config
+      run: |
+        # Copy template config for CI build
+        cp MailDroid/Sources/Config.template.swift MailDroid/Sources/Config.swift
+    - name: Build
+      run: swift build -v
