@@ -295,27 +295,116 @@ Maildroid uses GitHub Actions for automated releases.
 
 ### GitHub Actions Workflows
 
-The repository includes two workflow files.
+The repository includes three workflow files.
 
 - `.github/workflows/swift.yml` runs build verification on
   pull requests and pushes.
 - `.github/workflows/direct-release.yml` creates signed
-  release builds with DMG packaging.
+  release builds with DMG packaging for direct distribution.
+- `.github/workflows/appstore-release.yml` builds and uploads
+  the app to App Store Connect.
 
 ### Release Process
 
-The release workflow handles code signing and notarisation.
-Trigger the workflow manually from the Actions tab. The
-workflow generates `Config.swift` from repository secrets and
-builds a distributable DMG file.
+The direct release workflow triggers on version tags or manual
+dispatch. The App Store workflow requires manual dispatch with
+a version number. Both workflows generate `Config.swift` from
+repository secrets and build the app for distribution.
 
-### Required Secrets
+## Release Configuration
 
-Configure these secrets in the repository settings.
+Both release workflows require GitHub repository secrets.
+Configure these secrets in the repository settings under
+Settings > Secrets and variables > Actions.
 
-- `GOOGLE_CLIENT_ID` stores the Google OAuth Client ID.
-- Signing and notarisation secrets follow the same pattern
-  as the build workflow documentation.
+### Common Secrets
+
+Both workflows use the following secrets for OAuth
+configuration.
+
+- `GOOGLE_CLIENT_ID` stores the OAuth 2.0 client ID from
+  the Google Cloud Console.
+- `GOOGLE_CLIENT_SECRET` stores the OAuth 2.0 client secret
+  from the Google Cloud Console.
+
+Navigate to Google Cloud Console > APIs & Credentials >
+OAuth 2.0 Client IDs to obtain these values.
+
+### Direct Distribution Secrets
+
+The direct distribution workflow uses these secrets for code
+signing and notarisation.
+
+- `APPLE_CERTIFICATE_BASE64` stores the base64-encoded
+  Developer ID Application certificate as a `.p12` file.
+- `APPLE_CERTIFICATE_PASSWORD` stores the password for
+  the `.p12` certificate file.
+- `APPLE_ID` stores the Apple ID email address used for
+  notarisation.
+- `APPLE_APP_SPECIFIC_PASSWORD` stores the app-specific
+  password used for notarisation.
+- `APPLE_TEAM_ID` stores the Apple Developer Team ID.
+
+The following instructions explain how to obtain each value.
+
+Export the Developer ID Application certificate from Keychain
+Access as a `.p12` file. Run the following command to
+base64-encode the certificate.
+
+```bash
+base64 -i certificate.p12 | pbcopy
+```
+
+Generate an app-specific password at appleid.apple.com under
+Sign-In and Security > App-Specific Passwords. Find the Team
+ID in the Apple Developer account under Membership.
+
+### App Store Secrets
+
+The App Store workflow requires the common secrets and the
+following additional secrets.
+
+- `APPSTORE_APP_CERTIFICATE_BASE64` stores the base64-encoded
+  Apple Distribution certificate as a `.p12` file.
+- `APPSTORE_APP_CERTIFICATE_PASSWORD` stores the password for
+  the Apple Distribution certificate.
+- `APPSTORE_INSTALLER_CERTIFICATE_BASE64` stores the
+  base64-encoded 3rd Party Mac Developer Installer certificate
+  as a `.p12` file.
+- `APPSTORE_INSTALLER_CERTIFICATE_PASSWORD` stores the
+  password for the installer certificate.
+- `APPSTORE_PROVISIONING_PROFILE_BASE64` stores the
+  base64-encoded Mac App Store provisioning profile.
+- `APPSTORE_API_KEY_ID` stores the App Store Connect API
+  key ID.
+- `APPSTORE_API_ISSUER_ID` stores the App Store Connect API
+  issuer ID.
+- `APPSTORE_API_KEY_BASE64` stores the base64-encoded App
+  Store Connect API private key as a `.p8` file.
+
+The following instructions explain how to obtain each value.
+
+Create the Apple Distribution and 3rd Party Mac Developer
+Installer certificates in Apple Developer > Certificates.
+Download each certificate; then export the certificate from
+Keychain Access as a `.p12` file. Run the following command
+to base64-encode each certificate.
+
+```bash
+base64 -i certificate.p12 | pbcopy
+```
+
+Create the provisioning profile in Apple Developer > Profiles
+for Mac App Store distribution. Run the following command to
+base64-encode the profile.
+
+```bash
+base64 -i profile.provisionprofile | pbcopy
+```
+
+Create the API key in App Store Connect > Users and Access >
+Integrations > App Store Connect API. The key ID and issuer
+ID appear on the same page after key creation.
 
 ## Privacy
 
