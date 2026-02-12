@@ -5,9 +5,9 @@ import ServiceManagement
 
 enum SettingsTab: Int, CaseIterable {
     case general
+    case prompts
     case accounts
     case llmProvider
-    case prompts
     case about
 }
 
@@ -24,6 +24,13 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.general)
 
+            PromptsSettingsView()
+                .environmentObject(appState)
+                .tabItem {
+                    Label("Prompts", systemImage: "text.bubble")
+                }
+                .tag(SettingsTab.prompts)
+
             AccountsSettingsView()
                 .environmentObject(appState)
                 .tabItem {
@@ -37,13 +44,6 @@ struct SettingsView: View {
                     Label("LLM Provider", systemImage: "brain")
                 }
                 .tag(SettingsTab.llmProvider)
-
-            PromptsSettingsView()
-                .environmentObject(appState)
-                .tabItem {
-                    Label("Prompts", systemImage: "text.bubble")
-                }
-                .tag(SettingsTab.prompts)
 
             AboutSettingsView()
                 .tabItem {
