@@ -1,8 +1,10 @@
 import SwiftUI
 import AppKit
+import Combine
 
 // MARK: - App Delegate
 
+@MainActor
 public class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var popover: NSPopover?
@@ -10,13 +12,83 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindow: NSWindow?
     var executionHistoryWindow: NSWindow?
     var resultPopupController: ResultPopupWindowController?
+    var promptScheduler: PromptScheduler?
+    private var promptConfigsCancellable: AnyCancellable?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         setupNotificationObservers()
+        setupPromptScheduler()
 
         // Hide dock icon - menu bar only app
         NSApp.setActivationPolicy(.accessory)
+    }
+
+    // MARK: - Prompt Scheduler
+
+    private func setupPromptScheduler() {
+        let scheduler = PromptScheduler()
+
+        scheduler.onPromptDue = { [weak self] config in
+            self?.executeScheduledPrompt(config)
+        }
+
+        scheduler.rescheduleAll(configs: appState.promptConfigs)
+
+        // Observe changes to promptConfigs and reschedule when they change.
+        promptConfigsCancellable = appState.$promptConfigs
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak scheduler] configs in
+                MainActor.assumeIsolated {
+                    scheduler?.rescheduleAll(configs: configs)
+                }
+            }
+
+        promptScheduler = scheduler
+    }
+
+    /// Executes a scheduled prompt, stores the result, and shows the
+    /// result popup.
+    private func executeScheduledPrompt(_ config: PromptConfig) {
+        guard let llmConfig = appState.appSettings.llmConfig else {
+            return
+        }
+
+        if llmConfig.provider.requiresAPIKey && llmConfig.apiKey.isEmpty {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            do {
+                let gmailService = GmailService(appState: self.appState)
+                let executionService = PromptExecutionService(
+                    gmailService: gmailService
+                )
+                let execution = try await executionService.executePrompt(
+                    config,
+                    accounts: self.appState.accounts,
+                    llmConfig: llmConfig
+                )
+
+                self.appState.executionHistory.insert(execution, at: 0)
+                self.appState.saveExecutionHistory()
+
+                // Respect the onlyShowIfActionable setting.
+                if config.onlyShowIfActionable && !execution.wasActionable {
+                    return
+                }
+
+                let controller = ResultPopupWindowController()
+                self.resultPopupController = controller
+                controller.showResult(execution, appState: self.appState)
+            } catch {
+                // Scheduled prompt failures are silent; the user can check
+                // execution history for issues.
+            }
+        }
     }
 
     // MARK: - Menu Bar
