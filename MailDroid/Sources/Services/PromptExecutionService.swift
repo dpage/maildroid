@@ -22,6 +22,10 @@ enum PromptExecutionError: Error, LocalizedError {
 /// LLM prompt, and returning a structured execution record.
 struct PromptExecutionService {
 
+    /// Maximum token budget for email content in a single LLM call.
+    /// This leaves room for the system prompt, user request, and response.
+    private static let maxEmailTokens = 100_000
+
     private let gmailService: GmailService
     private let llmService: LLMService
 
@@ -58,8 +62,14 @@ struct PromptExecutionService {
             since: sinceDate
         )
 
-        // Build the prompt payload.
-        let formattedEmails = formatEmails(emails)
+        let totalEmailCount = emails.count
+
+        // Split emails into batches that fit within the token budget.
+        let batches = batchEmails(
+            emails,
+            maxTokens: Self.maxEmailTokens
+        )
+
         let systemPrompt = """
             You are analyzing emails for the user. Review the provided \
             emails and respond to the user's request. Be concise and \
@@ -74,18 +84,89 @@ struct PromptExecutionService {
             user's attention or action. Use "ACTIONABLE: NO" if there \
             is nothing the user needs to act on.
             """
-        let userContent = buildUserContent(
-            promptText: config.prompt,
-            formattedEmails: formattedEmails,
-            emailCount: emails.count
-        )
 
-        // Send to the LLM.
-        let response = try await llmService.sendPrompt(
-            config: llmConfig,
-            systemPrompt: systemPrompt,
-            userContent: userContent
-        )
+        let response: String
+
+        if batches.count <= 1 {
+            // Single batch: proceed as before.
+            let formattedEmails = formatEmails(emails)
+            let userContent = buildUserContent(
+                promptText: config.prompt,
+                formattedEmails: formattedEmails,
+                emailCount: totalEmailCount
+            )
+
+            response = try await llmService.sendPrompt(
+                config: llmConfig,
+                systemPrompt: systemPrompt,
+                userContent: userContent
+            )
+        } else {
+            // Multiple batches: summarize each batch then merge.
+            print(
+                "Email count (\(totalEmailCount)) exceeds single-batch "
+                + "token budget. Splitting into \(batches.count) batches."
+            )
+
+            let batchSystemPrompt = """
+                You are analyzing a batch of emails. Summarize the key \
+                information relevant to the user's request. Be thorough \
+                but concise. Do NOT include an ACTIONABLE marker yet.
+                """
+
+            var summaries: [String] = []
+
+            for (index, batch) in batches.enumerated() {
+                let batchNumber = index + 1
+                print(
+                    "Processing batch \(batchNumber) of "
+                    + "\(batches.count) (\(batch.count) emails)"
+                )
+
+                let formattedBatch = formatEmails(batch)
+                let batchUserContent = buildUserContent(
+                    promptText: config.prompt,
+                    formattedEmails: formattedBatch,
+                    emailCount: batch.count
+                )
+
+                let summary = try await llmService.sendPrompt(
+                    config: llmConfig,
+                    systemPrompt: batchSystemPrompt,
+                    userContent: batchUserContent
+                )
+                summaries.append(summary)
+            }
+
+            // Build the final merge prompt from all batch summaries.
+            var mergeParts: [String] = []
+            for (index, summary) in summaries.enumerated() {
+                mergeParts.append(
+                    "--- Batch \(index + 1) Summary ---\n\(summary)"
+                )
+            }
+            let mergeContent = """
+                You previously analyzed \(totalEmailCount) emails in \
+                \(batches.count) batches. Here are your summaries:
+
+                \(mergeParts.joined(separator: "\n\n"))
+
+                ---
+
+                User request: \(config.prompt)
+
+                Provide a final consolidated response addressing the \
+                user's request based on all batch summaries above.
+                """
+
+            print("Sending final merge prompt for \(batches.count) batches.")
+
+            response = try await llmService.sendPrompt(
+                config: llmConfig,
+                systemPrompt: systemPrompt,
+                userContent: mergeContent
+            )
+        }
 
         let (cleanedResponse, actionable) = parseActionability(response)
 
@@ -94,7 +175,7 @@ struct PromptExecutionService {
             promptName: config.name,
             result: cleanedResponse,
             wasActionable: actionable,
-            emailCount: emails.count
+            emailCount: totalEmailCount
         )
     }
 
@@ -133,6 +214,55 @@ struct PromptExecutionService {
         allEmails.sort { $0.date > $1.date }
 
         return allEmails
+    }
+
+    // MARK: - Token Estimation and Batching
+
+    /// Estimates the token count for a string using a rough
+    /// approximation of one token per four UTF-8 bytes.
+    func estimateTokenCount(_ text: String) -> Int {
+        text.utf8.count / 4
+    }
+
+    /// Splits emails into batches where each batch fits within the
+    /// given token budget.
+    ///
+    /// Each email is formatted individually to measure its token
+    /// cost. Emails are grouped sequentially so that no batch exceeds
+    /// `maxTokens` estimated tokens. A single email that exceeds the
+    /// budget is placed in its own batch.
+    func batchEmails(
+        _ emails: [Email],
+        maxTokens: Int
+    ) -> [[Email]] {
+        if emails.isEmpty {
+            return []
+        }
+
+        var batches: [[Email]] = []
+        var currentBatch: [Email] = []
+        var currentTokens = 0
+
+        for email in emails {
+            let formatted = formatEmails([email])
+            let tokens = estimateTokenCount(formatted)
+
+            if !currentBatch.isEmpty
+                && currentTokens + tokens > maxTokens {
+                batches.append(currentBatch)
+                currentBatch = []
+                currentTokens = 0
+            }
+
+            currentBatch.append(email)
+            currentTokens += tokens
+        }
+
+        if !currentBatch.isEmpty {
+            batches.append(currentBatch)
+        }
+
+        return batches
     }
 
     // MARK: - Email Formatting
