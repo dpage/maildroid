@@ -85,8 +85,16 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                 self.resultPopupController = controller
                 controller.showResult(execution, appState: self.appState)
             } catch {
-                // Scheduled prompt failures are silent; the user can check
-                // execution history for issues.
+                let failedExecution = PromptExecution(
+                    promptId: config.id,
+                    promptName: config.name,
+                    result: error.localizedDescription,
+                    wasActionable: true,
+                    emailCount: 0,
+                    wasShownToUser: false
+                )
+                self.appState.executionHistory.insert(failedExecution, at: 0)
+                self.appState.saveExecutionHistory()
             }
         }
     }

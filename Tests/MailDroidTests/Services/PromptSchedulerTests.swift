@@ -196,7 +196,7 @@ final class PromptSchedulerTests: XCTestCase {
 
     @MainActor
     func testSchedulePromptIgnoresDisabledConfig() {
-        var config = makeSamplePromptConfig(triggerType: .scheduled)
+        var config = makeSamplePromptConfig()
         config.isEnabled = false
         config.schedule = Schedule(frequency: .daily, minute: 0, hour: 12)
 
@@ -206,30 +206,18 @@ final class PromptSchedulerTests: XCTestCase {
     }
 
     @MainActor
-    func testSchedulePromptIgnoresOnDemandConfig() {
-        let config = makeSamplePromptConfig(
-            triggerType: .onDemand,
-            schedule: Schedule(frequency: .daily, minute: 0, hour: 12)
-        )
-
-        scheduler.schedulePrompt(config)
-        // On-demand prompts should not create timers.
-    }
-
-    @MainActor
     func testSchedulePromptIgnoresConfigWithoutSchedule() {
-        let config = makeSamplePromptConfig(triggerType: .scheduled)
+        let config = makeSamplePromptConfig()
         // schedule is nil by default.
 
         scheduler.schedulePrompt(config)
-        // No schedule means no timer should be created.
+        // Prompts without a schedule should not create timers.
     }
 
     @MainActor
     func testCancelAll() {
         let config = makeSamplePromptConfig(
             id: "cancel-test",
-            triggerType: .scheduled,
             schedule: Schedule(frequency: .daily, minute: 59, hour: 23)
         )
 
@@ -243,12 +231,10 @@ final class PromptSchedulerTests: XCTestCase {
         let configs = [
             makeSamplePromptConfig(
                 id: "rs1",
-                triggerType: .scheduled,
                 schedule: Schedule(frequency: .daily, minute: 59, hour: 23)
             ),
             makeSamplePromptConfig(
                 id: "rs2",
-                triggerType: .both,
                 schedule: Schedule(frequency: .hourly, minute: 30)
             )
         ]

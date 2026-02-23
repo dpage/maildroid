@@ -10,7 +10,7 @@ struct PromptEditorView: View {
     @State private var name: String
     @State private var promptText: String
     @State private var emailTimeRange: EmailTimeRange
-    @State private var triggerType: TriggerType
+    @State private var isScheduleEnabled: Bool
     @State private var scheduleFrequency: ScheduleFrequency
     @State private var scheduleMinute: Int
     @State private var scheduleHour: Int
@@ -31,8 +31,8 @@ struct PromptEditorView: View {
         _emailTimeRange = State(
             initialValue: existingConfig?.emailTimeRange ?? .last24Hours
         )
-        _triggerType = State(
-            initialValue: existingConfig?.triggerType ?? .onDemand
+        _isScheduleEnabled = State(
+            initialValue: existingConfig?.schedule != nil
         )
         _scheduleFrequency = State(
             initialValue: schedule?.frequency ?? .daily
@@ -99,21 +99,15 @@ struct PromptEditorView: View {
                         .pickerStyle(.segmented)
                     }
 
-                    // Trigger type picker
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Trigger Type")
-                            .font(.system(size: 12, weight: .medium))
-                        Picker("", selection: $triggerType) {
-                            ForEach(TriggerType.allCases, id: \.self) { type in
-                                Text(type.rawValue).tag(type)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                    }
+                    // Schedule toggle
+                    Toggle(
+                        "Enable Schedule",
+                        isOn: $isScheduleEnabled
+                    )
+                    .font(.system(size: 13))
 
                     // Schedule configuration
-                    if triggerType == .scheduled || triggerType == .both {
+                    if isScheduleEnabled {
                         scheduleSection
                     }
 
@@ -280,7 +274,7 @@ struct PromptEditorView: View {
     // MARK: - Actions
 
     private func savePrompt() {
-        let schedule: Schedule? = (triggerType == .scheduled || triggerType == .both)
+        let schedule: Schedule? = isScheduleEnabled
             ? currentSchedule
             : nil
 
@@ -289,7 +283,6 @@ struct PromptEditorView: View {
             name: name.trimmingCharacters(in: .whitespaces),
             prompt: promptText,
             emailTimeRange: emailTimeRange,
-            triggerType: triggerType,
             schedule: schedule,
             onlyShowIfActionable: onlyShowIfActionable,
             isEnabled: existingConfig?.isEnabled ?? true

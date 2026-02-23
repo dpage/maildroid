@@ -355,7 +355,7 @@ struct PromptRowView: View {
                 ProgressView()
                     .scaleEffect(0.6)
                     .frame(width: 20, height: 20)
-            } else if config.triggerType != .scheduled || isHovering {
+            } else {
                 Button(action: onShowHistory) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 11))
@@ -390,20 +390,13 @@ struct PromptRowView: View {
 
     private var statusText: String {
         let triggerLabel: String
-        switch config.triggerType {
-        case .onDemand:
+        if let schedule = config.schedule {
+            triggerLabel = schedule.displayString
+        } else {
             triggerLabel = "On demand"
-        case .scheduled:
-            triggerLabel = scheduleDescription
-        case .both:
-            triggerLabel = "On demand + \(scheduleDescription)"
         }
 
         return "\(config.emailTimeRange.rawValue) - \(triggerLabel)"
-    }
-
-    private var scheduleDescription: String {
-        config.schedule?.displayString ?? "No schedule"
     }
 }
 

@@ -5,7 +5,6 @@ struct PromptConfig: Identifiable, Codable {
     var name: String
     var prompt: String
     var emailTimeRange: EmailTimeRange
-    var triggerType: TriggerType
     var schedule: Schedule?
     var onlyShowIfActionable: Bool
     var isEnabled: Bool
@@ -15,7 +14,6 @@ struct PromptConfig: Identifiable, Codable {
         name: String = "",
         prompt: String = "",
         emailTimeRange: EmailTimeRange = .last24Hours,
-        triggerType: TriggerType = .onDemand,
         schedule: Schedule? = nil,
         onlyShowIfActionable: Bool = false,
         isEnabled: Bool = true
@@ -24,7 +22,6 @@ struct PromptConfig: Identifiable, Codable {
         self.name = name
         self.prompt = prompt
         self.emailTimeRange = emailTimeRange
-        self.triggerType = triggerType
         self.schedule = schedule
         self.onlyShowIfActionable = onlyShowIfActionable
         self.isEnabled = isEnabled
@@ -43,8 +40,10 @@ struct PromptConfig: Identifiable, Codable {
         emailTimeRange = try container.decode(
             EmailTimeRange.self, forKey: .emailTimeRange
         )
-        triggerType = try container.decode(
-            TriggerType.self, forKey: .triggerType
+        // Read and discard the legacy triggerType value. If it was
+        // "On Demand", clear any stale schedule below.
+        let legacyTrigger = try container.decodeIfPresent(
+            String.self, forKey: .triggerType
         )
         onlyShowIfActionable = try container.decode(
             Bool.self, forKey: .onlyShowIfActionable
@@ -69,6 +68,11 @@ struct PromptConfig: Identifiable, Codable {
         } else {
             schedule = nil
         }
+
+        // Clear any stale schedule when the legacy trigger was on-demand only.
+        if legacyTrigger == "On Demand" {
+            schedule = nil
+        }
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -83,7 +87,6 @@ struct PromptConfig: Identifiable, Codable {
         try container.encode(name, forKey: .name)
         try container.encode(prompt, forKey: .prompt)
         try container.encode(emailTimeRange, forKey: .emailTimeRange)
-        try container.encode(triggerType, forKey: .triggerType)
         try container.encodeIfPresent(schedule, forKey: .schedule)
         try container.encode(onlyShowIfActionable, forKey: .onlyShowIfActionable)
         try container.encode(isEnabled, forKey: .isEnabled)
@@ -137,12 +140,6 @@ enum EmailTimeRange: String, Codable, CaseIterable {
             return 604_800
         }
     }
-}
-
-enum TriggerType: String, Codable, CaseIterable {
-    case onDemand = "On Demand"
-    case scheduled = "Scheduled"
-    case both = "Both"
 }
 
 // MARK: - Schedule

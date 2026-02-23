@@ -397,7 +397,7 @@ struct PromptConfigRowView: View {
                 Text(config.name.isEmpty ? "Untitled Prompt" : config.name)
                     .font(.system(size: 13, weight: .medium))
 
-                Text("\(config.triggerType.rawValue) - \(config.emailTimeRange.rawValue)")
+                Text("\(config.schedule?.displayString ?? "On demand") - \(config.emailTimeRange.rawValue)")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

@@ -1,10 +1,12 @@
 import Foundation
+import AppKit
 
 /// Manages timers for scheduled prompt configurations.
 ///
 /// Each enabled prompt with a schedule gets a timer that fires at
 /// the next occurrence. After firing, the timer reschedules for the
-/// following occurrence.
+/// following occurrence. The scheduler observes system sleep/wake
+/// notifications and reschedules all timers on wake.
 @MainActor
 final class PromptScheduler {
 
@@ -12,6 +14,13 @@ final class PromptScheduler {
     var onPromptDue: ((PromptConfig) -> Void)?
 
     private var timers: [String: Timer] = [:]
+    private var storedConfigs: [PromptConfig] = []
+
+    // MARK: - Initialisation
+
+    init() {
+        observeSleepWake()
+    }
 
     // MARK: - Public API
 
@@ -19,12 +28,19 @@ final class PromptScheduler {
     ///
     /// The method cancels any existing timer for the same prompt
     /// before creating a new one. Prompts without a schedule or
-    /// with an on-demand-only trigger type are ignored.
+    /// that are disabled are ignored.
     func schedulePrompt(_ config: PromptConfig) {
         cancelSchedule(for: config.id)
 
+        // Update the stored config for this prompt.
+        if let index = storedConfigs.firstIndex(where: { $0.id == config.id }) {
+            storedConfigs[index] = config
+        } else {
+            storedConfigs.append(config)
+        }
+
+        // Only schedule prompts that are enabled and have a schedule.
         guard config.isEnabled,
-              config.triggerType == .scheduled || config.triggerType == .both,
               let schedule = config.schedule else {
             return
         }
@@ -60,6 +76,7 @@ final class PromptScheduler {
     /// configurations.
     func rescheduleAll(configs: [PromptConfig]) {
         cancelAll()
+        storedConfigs = configs
 
         for config in configs {
             schedulePrompt(config)
@@ -72,6 +89,34 @@ final class PromptScheduler {
             timer.invalidate()
         }
         timers.removeAll()
+    }
+
+    // MARK: - Sleep/Wake Handling
+
+    /// Registers observers for system sleep and wake notifications.
+    private func observeSleepWake() {
+        let center = NSWorkspace.shared.notificationCenter
+
+        center.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.cancelAll()
+            }
+        }
+
+        center.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.rescheduleAll(configs: self.storedConfigs)
+            }
+        }
     }
 
     // MARK: - Timer Handling

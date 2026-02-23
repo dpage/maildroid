@@ -16,7 +16,6 @@ final class PromptConfigTests: XCTestCase {
         XCTAssertEqual(config.name, "")
         XCTAssertEqual(config.prompt, "")
         XCTAssertEqual(config.emailTimeRange, .last24Hours)
-        XCTAssertEqual(config.triggerType, .onDemand)
         XCTAssertNil(config.schedule)
         XCTAssertFalse(config.onlyShowIfActionable)
         XCTAssertTrue(config.isEnabled)
@@ -29,7 +28,6 @@ final class PromptConfigTests: XCTestCase {
             name: "Morning Digest",
             prompt: "Summarize my emails",
             emailTimeRange: .last3Days,
-            triggerType: .scheduled,
             schedule: schedule,
             onlyShowIfActionable: true,
             isEnabled: false
@@ -39,7 +37,6 @@ final class PromptConfigTests: XCTestCase {
         XCTAssertEqual(config.name, "Morning Digest")
         XCTAssertEqual(config.prompt, "Summarize my emails")
         XCTAssertEqual(config.emailTimeRange, .last3Days)
-        XCTAssertEqual(config.triggerType, .scheduled)
         XCTAssertNotNil(config.schedule)
         XCTAssertTrue(config.onlyShowIfActionable)
         XCTAssertFalse(config.isEnabled)
@@ -96,7 +93,6 @@ final class PromptConfigTests: XCTestCase {
             name: "Round Trip",
             prompt: "Test prompt",
             emailTimeRange: .last7Days,
-            triggerType: .both,
             schedule: schedule,
             onlyShowIfActionable: true,
             isEnabled: true
@@ -109,7 +105,6 @@ final class PromptConfigTests: XCTestCase {
         XCTAssertEqual(decoded.name, config.name)
         XCTAssertEqual(decoded.prompt, config.prompt)
         XCTAssertEqual(decoded.emailTimeRange, config.emailTimeRange)
-        XCTAssertEqual(decoded.triggerType, config.triggerType)
         XCTAssertEqual(decoded.schedule, config.schedule)
         XCTAssertEqual(decoded.onlyShowIfActionable, config.onlyShowIfActionable)
         XCTAssertEqual(decoded.isEnabled, config.isEnabled)
@@ -159,6 +154,28 @@ final class PromptConfigTests: XCTestCase {
         XCTAssertEqual(decoded.id, "no-schedule")
         XCTAssertNil(decoded.schedule)
     }
+
+    func testDecodesJSONWithoutTriggerTypeKey() throws {
+        let json = """
+        {
+            "id": "no-trigger",
+            "name": "No Trigger Type",
+            "prompt": "Test",
+            "emailTimeRange": "Last 24 hours",
+            "schedule": {"frequency": "Daily", "minute": 30, "hour": 9, "daysOfWeek": []},
+            "onlyShowIfActionable": false,
+            "isEnabled": true
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(PromptConfig.self, from: data)
+
+        XCTAssertEqual(decoded.id, "no-trigger")
+        XCTAssertNotNil(decoded.schedule)
+        XCTAssertEqual(decoded.schedule?.frequency, .daily)
+        XCTAssertEqual(decoded.schedule?.hour, 9)
+        XCTAssertEqual(decoded.schedule?.minute, 30)
+    }
 }
 
 // MARK: - EmailTimeRange Tests
@@ -180,25 +197,6 @@ final class EmailTimeRangeTests: XCTestCase {
         XCTAssertEqual(EmailTimeRange.last24Hours.rawValue, "Last 24 hours")
         XCTAssertEqual(EmailTimeRange.last3Days.rawValue, "Last 3 days")
         XCTAssertEqual(EmailTimeRange.last7Days.rawValue, "Last 7 days")
-    }
-}
-
-// MARK: - TriggerType Tests
-
-final class TriggerTypeTests: XCTestCase {
-
-    func testAllCases() {
-        let allCases = TriggerType.allCases
-        XCTAssertEqual(allCases.count, 3)
-        XCTAssertTrue(allCases.contains(.onDemand))
-        XCTAssertTrue(allCases.contains(.scheduled))
-        XCTAssertTrue(allCases.contains(.both))
-    }
-
-    func testRawValues() {
-        XCTAssertEqual(TriggerType.onDemand.rawValue, "On Demand")
-        XCTAssertEqual(TriggerType.scheduled.rawValue, "Scheduled")
-        XCTAssertEqual(TriggerType.both.rawValue, "Both")
     }
 }
 

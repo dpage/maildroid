@@ -74,7 +74,6 @@ func makeSamplePromptConfig(
     name: String = "Test Prompt",
     prompt: String = "Summarize my emails",
     emailTimeRange: EmailTimeRange = .last24Hours,
-    triggerType: TriggerType = .onDemand,
     schedule: Schedule? = nil,
     onlyShowIfActionable: Bool = false,
     isEnabled: Bool = true
@@ -84,7 +83,6 @@ func makeSamplePromptConfig(
         name: name,
         prompt: prompt,
         emailTimeRange: emailTimeRange,
-        triggerType: triggerType,
         schedule: schedule,
         onlyShowIfActionable: onlyShowIfActionable,
         isEnabled: isEnabled
