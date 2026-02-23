@@ -184,13 +184,25 @@ jobs:
 
           # Copy assets if they exist
           if [ -d "MailDroid/Assets.xcassets" ]; then
+            BUILD_DIR=$(swift build -c release --show-bin-path)
+            PARTIAL_PLIST="$BUILD_DIR/partial-info.plist"
+
             # Compile asset catalog
             xcrun actool MailDroid/Assets.xcassets \
               --compile "$RESOURCES_DIR" \
               --platform macosx \
               --minimum-deployment-target 13.0 \
               --app-icon AppIcon \
-              --output-partial-info-plist /dev/null 2>/dev/null || true
+              --output-partial-info-plist "$PARTIAL_PLIST"
+
+            # Merge CFBundleIconName from the partial plist into the app's Info.plist if not already set
+            if [ -f "$PARTIAL_PLIST" ]; then
+              ICON_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$PARTIAL_PLIST" 2>/dev/null) || true
+              if [ -n "$ICON_NAME" ]; then
+                /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string $ICON_NAME" "$APP_DIR/Info.plist" 2>/dev/null || \
+                  echo "CFBundleIconName already set in Info.plist"
+              fi
+            fi
           fi
 
           echo "App bundle created at MailDroid.app"
