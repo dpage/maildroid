@@ -89,6 +89,20 @@ struct ResultPopupView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
+                Button {
+                    Task {
+                        await ReportExporter.saveReport(for: execution)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "square.and.arrow.down")
+                        Text("Save")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
                 Button(action: onViewHistory) {
                     HStack {
                         Image(systemName: "clock.arrow.circlepath")

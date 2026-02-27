@@ -174,6 +174,19 @@ struct ExecutionRow: View {
 
                 Spacer()
 
+                // Save report button
+                Button {
+                    Task {
+                        await ReportExporter.saveReport(for: execution)
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Save report as Markdown")
+
                 // Delete button
                 Button(action: onDelete) {
                     Image(systemName: "trash")
