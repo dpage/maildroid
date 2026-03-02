@@ -7,6 +7,11 @@ import Foundation
 class GmailService {
     private weak var appState: AppState?
 
+    /// Tracks in-flight token refresh tasks keyed by account ID.
+    /// Access is serialized on MainActor to prevent race conditions.
+    @MainActor
+    private var inFlightRefreshes: [String: Task<GmailAccount, Error>] = [:]
+
     init(appState: AppState) {
         self.appState = appState
     }
@@ -156,14 +161,56 @@ class GmailService {
     // MARK: - Token Refresh
 
     /// Refreshes the access token via GoogleAuthService and persists the update.
+    ///
+    /// Concurrent callers refreshing the same account share a single in-flight
+    /// request. The first caller creates the task; subsequent callers await it.
     private func refreshToken(for account: GmailAccount) async throws -> GmailAccount {
-        guard let authService = await createAuthService() else {
-            throw GmailError.noAppState
+        let accountId = account.id
+
+        // Check for an existing in-flight refresh on MainActor.
+        if let existingTask = await getInFlightRefresh(for: accountId) {
+            print("[MailDroid] Awaiting existing token refresh for account \(account.email)")
+            return try await existingTask.value
         }
 
-        let updated = try await authService.refreshAccessToken(for: account)
-        await persistUpdatedAccount(updated)
-        return updated
+        // Create a new refresh task and register it.
+        let task = Task<GmailAccount, Error> { [weak self] in
+            guard let self = self else { throw GmailError.noAppState }
+
+            guard let authService = await self.createAuthService() else {
+                throw GmailError.noAppState
+            }
+
+            let updated = try await authService.refreshAccessToken(for: account)
+            await self.persistUpdatedAccount(updated)
+            return updated
+        }
+
+        await setInFlightRefresh(task, for: accountId)
+
+        do {
+            let result = try await task.value
+            await removeInFlightRefresh(for: accountId)
+            return result
+        } catch {
+            await removeInFlightRefresh(for: accountId)
+            throw error
+        }
+    }
+
+    @MainActor
+    private func getInFlightRefresh(for accountId: String) -> Task<GmailAccount, Error>? {
+        return inFlightRefreshes[accountId]
+    }
+
+    @MainActor
+    private func setInFlightRefresh(_ task: Task<GmailAccount, Error>, for accountId: String) {
+        inFlightRefreshes[accountId] = task
+    }
+
+    @MainActor
+    private func removeInFlightRefresh(for accountId: String) {
+        inFlightRefreshes.removeValue(forKey: accountId)
     }
 
     @MainActor

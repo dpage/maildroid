@@ -74,11 +74,22 @@ class GoogleAuthService: NSObject {
         }
 
         if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
-            throw AuthError.refreshTokenRevoked
+            let responseBody = String(data: data, encoding: .utf8) ?? "<unreadable>"
+            print("[MailDroid] Token refresh failed with HTTP \(httpResponse.statusCode): \(responseBody)")
+
+            var errorDescription = "HTTP \(httpResponse.statusCode)"
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorString = errorJson["error_description"] as? String {
+                errorDescription = errorString
+            }
+
+            throw AuthError.refreshTokenRevoked(errorDescription)
         }
 
         guard httpResponse.statusCode == 200 else {
-            throw AuthError.tokenRefreshFailed
+            let responseBody = String(data: data, encoding: .utf8) ?? "<unreadable>"
+            print("[MailDroid] Token refresh failed with HTTP \(httpResponse.statusCode): \(responseBody)")
+            throw AuthError.tokenRefreshFailed(httpResponse.statusCode)
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -303,8 +314,8 @@ enum AuthError: LocalizedError {
     case userInfoFailed
     case invalidUserInfoResponse
     case noRefreshToken
-    case refreshTokenRevoked
-    case tokenRefreshFailed
+    case refreshTokenRevoked(String)
+    case tokenRefreshFailed(Int)
     case invalidResponse
 
     var errorDescription: String? {
@@ -327,10 +338,10 @@ enum AuthError: LocalizedError {
             return "Invalid user info response from Google."
         case .noRefreshToken:
             return "No refresh token available."
-        case .refreshTokenRevoked:
-            return "Refresh token has been revoked; please re-authenticate."
-        case .tokenRefreshFailed:
-            return "Failed to refresh access token."
+        case .refreshTokenRevoked(let detail):
+            return "Refresh token has been revoked (\(detail)); please re-authenticate."
+        case .tokenRefreshFailed(let statusCode):
+            return "Failed to refresh access token (HTTP \(statusCode))."
         case .invalidResponse:
             return "Invalid response from server."
         }
