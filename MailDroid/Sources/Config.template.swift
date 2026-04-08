@@ -38,5 +38,5 @@ struct Config {
     static let gmailBaseURL = "https://gmail.googleapis.com/gmail/v1"
 
     // App bundle identifier
-    static let bundleIdentifier = "page.conx.maildroid"
+    static let bundleIdentifier = "page.conx.MailDroid"
 }

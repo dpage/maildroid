@@ -155,7 +155,7 @@ rather than a web server redirect.
 3. Select "OAuth client ID" from the dropdown menu.
 4. Choose "iOS" from the "Application type" dropdown.
 5. Enter "Maildroid macOS" in the "Name" field.
-6. Enter `page.conx.maildroid` in the "Bundle ID" field.
+6. Enter `page.conx.MailDroid` in the "Bundle ID" field.
 7. Leave the "App Store ID" and "Team ID" fields blank.
 8. Click "Create" to generate the credentials.
 

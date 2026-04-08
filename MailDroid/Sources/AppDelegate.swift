@@ -103,6 +103,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem?.autosaveName = "MailDroidMenuBarItem"
+        statusItem?.isVisible = true
 
         if let button = statusItem?.button {
             button.image = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid")

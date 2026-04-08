@@ -10,7 +10,7 @@ on:
 
 env:
   APP_NAME: MailDroid
-  BUNDLE_ID: page.conx.maildroid
+  BUNDLE_ID: page.conx.MailDroid
 
 jobs:
   build:
@@ -74,7 +74,7 @@ jobs:
               static let gmailBaseURL = "https://gmail.googleapis.com/gmail/v1"
 
               // App bundle identifier
-              static let bundleIdentifier = "page.conx.maildroid"
+              static let bundleIdentifier = "page.conx.MailDroid"
           }
           SWIFT_EOF
 
@@ -168,7 +168,7 @@ jobs:
 
           # Replace variables in Info.plist with actual values
           /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable MailDroid" "$APP_DIR/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier page.conx.maildroid" "$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier page.conx.MailDroid" "$APP_DIR/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleName MailDroid" "$APP_DIR/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_DIR/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_DIR/Info.plist"

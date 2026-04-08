@@ -6,7 +6,7 @@ import Foundation
 /// tearDown method.
 enum TestDefaults {
     /// The suite name for all test UserDefaults.
-    static let suiteName = "page.conx.maildroid.tests"
+    static let suiteName = "page.conx.MailDroid.tests"
 
     /// Returns a fresh UserDefaults suite for testing.
     static var suite: UserDefaults {

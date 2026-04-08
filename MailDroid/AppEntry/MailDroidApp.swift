@@ -8,7 +8,7 @@ struct MailDroidApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // Empty WindowGroup - the app is managed entirely via AppDelegate
+        // Empty WindowGroup - keeps the app alive
         WindowGroup {
             EmptyView()
                 .frame(width: 0, height: 0)
