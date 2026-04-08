@@ -14,6 +14,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptConfigsCancellable: AnyCancellable?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        // Prevent macOS from killing a menu bar app that has no open windows.
+        ProcessInfo.processInfo.disableAutomaticTermination("Menu bar app")
+        ProcessInfo.processInfo.disableSuddenTermination()
+
         setupNotificationObservers()
         setupPromptScheduler()
 
