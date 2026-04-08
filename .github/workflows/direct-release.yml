@@ -168,6 +168,9 @@ jobs:
           mkdir -p "$MACOS_DIR"
           mkdir -p "$RESOURCES_DIR"
 
+          # Create PkgInfo file (standard for macOS app bundles)
+          printf 'APPL????' > "$APP_DIR/PkgInfo"
+
           # Copy the built binary
           BINARY_PATH=$(swift build -c release --show-bin-path)/MailDroid
           cp "$BINARY_PATH" "$MACOS_DIR/MailDroid"
@@ -182,6 +185,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_DIR/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_DIR/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 13.0" "$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP_DIR/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile AppIcon" "$APP_DIR/Info.plist"
 
           # Copy assets if they exist
           if [ -d "MailDroid/Assets.xcassets" ]; then
