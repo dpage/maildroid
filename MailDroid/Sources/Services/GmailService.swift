@@ -89,10 +89,13 @@ class GmailService {
     ) async throws -> Data {
         var currentAccount = account
 
+        print("[MailDroid] authenticatedRequest: account=\(account.email), hasAccessToken=\(account.accessToken != nil), hasRefreshToken=\(account.refreshToken != nil), isTokenExpired=\(account.isTokenExpired)")
+
         // Proactively refresh if the token is already expired.
         if currentAccount.isTokenExpired {
             guard currentAccount.refreshToken != nil,
                   currentAccount.refreshToken?.isEmpty == false else {
+                print("[MailDroid] authenticatedRequest: token expired but no refresh token available for \(account.email)")
                 throw GmailError.noRefreshToken
             }
             currentAccount = try await refreshToken(for: currentAccount)
@@ -166,6 +169,7 @@ class GmailService {
 
         // Check for an existing in-flight refresh on MainActor.
         if let existingTask = await getInFlightRefresh(for: accountId) {
+            print("[MailDroid] Awaiting existing token refresh for account \(account.email)")
             return try await existingTask.value
         }
 

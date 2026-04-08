@@ -74,6 +74,9 @@ class GoogleAuthService: NSObject {
         }
 
         if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
+            let responseBody = String(data: data, encoding: .utf8) ?? "<unreadable>"
+            print("[MailDroid] Token refresh failed with HTTP \(httpResponse.statusCode): \(responseBody)")
+
             var errorDescription = "HTTP \(httpResponse.statusCode)"
             if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errorString = errorJson["error_description"] as? String {
@@ -84,6 +87,8 @@ class GoogleAuthService: NSObject {
         }
 
         guard httpResponse.statusCode == 200 else {
+            let responseBody = String(data: data, encoding: .utf8) ?? "<unreadable>"
+            print("[MailDroid] Token refresh failed with HTTP \(httpResponse.statusCode): \(responseBody)")
             throw AuthError.tokenRefreshFailed(httpResponse.statusCode)
         }
 

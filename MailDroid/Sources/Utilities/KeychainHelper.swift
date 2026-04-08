@@ -31,6 +31,7 @@ struct KeychainHelper {
         expiry: Date?,
         for accountId: String
     ) {
+        print("[MailDroid] saveTokens for account \(accountId): accessToken=\(accessToken != nil), refreshToken=\(refreshToken != nil), expiry=\(expiry != nil)")
         if let accessToken = accessToken {
             save(
                 value: accessToken,
@@ -67,6 +68,8 @@ struct KeychainHelper {
         ), let interval = Double(expiryString) {
             expiry = Date(timeIntervalSince1970: interval)
         }
+
+        print("[MailDroid] loadTokens for account \(accountId): accessToken=\(accessToken != nil), refreshToken=\(refreshToken != nil), expiry=\(expiry != nil)")
 
         return TokenData(
             accessToken: accessToken,
