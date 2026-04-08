@@ -109,7 +109,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid")
+            if let symbolImage = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid") {
+                button.image = symbolImage
+            } else {
+                button.title = "MD"
+            }
             button.action = #selector(togglePopover)
             button.target = self
         }
