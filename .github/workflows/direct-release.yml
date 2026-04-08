@@ -182,6 +182,10 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_DIR/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_DIR/Info.plist"
 
+          # Safety: remove keys that conflict with SwiftUI @main scene initialization
+          /usr/libexec/PlistBuddy -c "Delete :NSPrincipalClass" "$APP_DIR/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Delete :NSMainStoryboardFile" "$APP_DIR/Info.plist" 2>/dev/null || true
+
           # Copy assets if they exist
           if [ -d "MailDroid/Assets.xcassets" ]; then
             BUILD_DIR=$(swift build -c release --show-bin-path)
