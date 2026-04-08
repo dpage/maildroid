@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import Combine
-import os.log
 
 // MARK: - App Delegate
 
@@ -17,15 +16,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptConfigsCancellable: AnyCancellable?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
-        os_log("[MailDroid] applicationDidFinishLaunching called")
         setupMenuBar()
-        os_log("[MailDroid] setupMenuBar completed, statusItem=\(String(describing: self.statusItem), privacy: .public)")
         setupNotificationObservers()
         setupPromptScheduler()
 
         // Hide dock icon - menu bar only app
         NSApp.setActivationPolicy(.accessory)
-        os_log("[MailDroid] applicationDidFinishLaunching completed")
     }
 
     // MARK: - Prompt Scheduler
@@ -106,17 +102,12 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
 
     private func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem?.button {
-            button.title = "MD"
             button.image = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid")
-            button.imagePosition = .imageLeading
             button.action = #selector(togglePopover)
             button.target = self
-            os_log("[MailDroid] button configured: title=\(button.title, privacy: .public), image=\(String(describing: button.image), privacy: .public), frame=\(String(describing: button.frame), privacy: .public)")
-        } else {
-            os_log("[MailDroid] statusItem.button is nil!")
         }
 
         popover = NSPopover()

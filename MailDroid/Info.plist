@@ -21,9 +21,13 @@
     <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
+    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSMainStoryboardFile</key>
+    <string></string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
@@ -41,9 +45,5 @@
     <string>public.app-category.productivity</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>NSMainStoryboardFile</key>
-    <string></string>
 </dict>
 </plist>
