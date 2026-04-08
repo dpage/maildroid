@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import os.log
 
 // MARK: - App Delegate
 
@@ -16,12 +17,15 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptConfigsCancellable: AnyCancellable?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        os_log("[MailDroid] applicationDidFinishLaunching called")
         setupMenuBar()
+        os_log("[MailDroid] setupMenuBar completed, statusItem=\(String(describing: self.statusItem), privacy: .public)")
         setupNotificationObservers()
         setupPromptScheduler()
 
         // Hide dock icon - menu bar only app
         NSApp.setActivationPolicy(.accessory)
+        os_log("[MailDroid] applicationDidFinishLaunching completed")
     }
 
     // MARK: - Prompt Scheduler
