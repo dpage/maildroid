@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Config.swift with secrets
         env:
@@ -265,7 +265,7 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MailDroid-${{ github.event.inputs.version }}-AppStore
           path: build/*.pkg

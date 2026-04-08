@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get version
         id: version
@@ -349,7 +349,7 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MailDroid-${{ steps.version.outputs.version }}-direct
           path: release/MailDroid-*
