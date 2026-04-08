@@ -106,16 +106,17 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
 
     private func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem?.button {
-            if let symbolImage = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid") {
-                button.image = symbolImage
-            } else {
-                button.title = "MD"
-            }
+            button.title = "MD"
+            button.image = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid")
+            button.imagePosition = .imageLeading
             button.action = #selector(togglePopover)
             button.target = self
+            os_log("[MailDroid] button configured: title=\(button.title, privacy: .public), image=\(String(describing: button.image), privacy: .public), frame=\(String(describing: button.frame), privacy: .public)")
+        } else {
+            os_log("[MailDroid] statusItem.button is nil!")
         }
 
         popover = NSPopover()
