@@ -6,8 +6,6 @@ import Combine
 
 @MainActor
 public class AppDelegate: NSObject, NSApplicationDelegate {
-    var statusItem: NSStatusItem?
-    var popover: NSPopover?
     var appState = AppState()
     var settingsWindow: NSWindow?
     var executionHistoryWindow: NSWindow?
@@ -16,7 +14,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptConfigsCancellable: AnyCancellable?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
-        setupMenuBar()
         setupNotificationObservers()
         setupPromptScheduler()
 
@@ -99,26 +96,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - Menu Bar
-
-    private func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "envelope.badge.fill", accessibilityDescription: "MailDroid")
-            button.action = #selector(togglePopover)
-            button.target = self
-        }
-
-        popover = NSPopover()
-        popover?.contentSize = NSSize(width: 380, height: 450)
-        popover?.behavior = .transient
-        popover?.contentViewController = NSHostingController(
-            rootView: MenuDropdownView()
-                .environmentObject(appState)
-        )
-    }
-
     // MARK: - Notification Observers
 
     private func setupNotificationObservers() {
@@ -144,21 +121,18 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    // MARK: - Popover
+    // MARK: - Menu Bar Content
 
-    @objc func togglePopover() {
-        guard let button = statusItem?.button, let popover = popover else { return }
-
-        if popover.isShown {
-            popover.performClose(nil)
-        } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
-        }
+    /// Returns the content view for the menu bar extra scene.
+    public func menuBarContentView() -> some View {
+        MenuDropdownView()
+            .environmentObject(appState)
     }
 
+    // MARK: - Popover
+
     @objc func closePopover() {
-        popover?.performClose(nil)
+        NSApp.keyWindow?.close()
     }
 
     // MARK: - Settings Window
@@ -169,8 +143,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             appState.selectedSettingsTab = tab
         }
 
-        // Close the popover first
-        popover?.performClose(nil)
+        // Close the menu bar panel first
+        NSApp.keyWindow?.close()
 
         // If the settings window already exists, bring it to front
         if let window = settingsWindow, window.isVisible {

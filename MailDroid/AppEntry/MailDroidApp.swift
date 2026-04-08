@@ -8,13 +8,9 @@ struct MailDroidApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // Empty WindowGroup - the app is managed entirely via AppDelegate
-        WindowGroup {
-            EmptyView()
-                .frame(width: 0, height: 0)
-                .hidden()
+        MenuBarExtra("MailDroid", systemImage: "envelope.badge.fill") {
+            appDelegate.menuBarContentView()
         }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
+        .menuBarExtraStyle(.window)
     }
 }
