@@ -13,11 +13,22 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     var promptScheduler: PromptScheduler?
     private var promptConfigsCancellable: AnyCancellable?
 
-    public func applicationDidFinishLaunching(_ notification: Notification) {
+    public override init() {
+        super.init()
         // Prevent macOS from killing a menu bar app that has no open windows.
+        // Must be called in init(), not applicationDidFinishLaunching,
+        // because auto-termination fires before the delegate method.
         ProcessInfo.processInfo.disableAutomaticTermination("Menu bar app")
         ProcessInfo.processInfo.disableSuddenTermination()
+    }
 
+    public func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Block automatic termination attempts. The app should only
+        // quit when the user explicitly chooses Quit.
+        return .terminateCancel
+    }
+
+    public func applicationDidFinishLaunching(_ notification: Notification) {
         setupNotificationObservers()
         setupPromptScheduler()
 
