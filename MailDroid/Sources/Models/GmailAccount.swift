@@ -41,18 +41,14 @@ struct GmailAccount: Identifiable, Codable {
     static func loadAll() -> [GmailAccount] {
         guard let data = UserDefaults.standard.data(forKey: accountsKey),
               var accounts = try? JSONDecoder().decode([GmailAccount].self, from: data) else {
-            print("[MailDroid] loadAll: no accounts found in UserDefaults")
             return []
         }
-
-        print("[MailDroid] loadAll: loaded \(accounts.count) account(s) from UserDefaults")
 
         for i in accounts.indices {
             let tokens = KeychainHelper.loadTokens(for: accounts[i].id)
             accounts[i].accessToken = tokens.accessToken
             accounts[i].refreshToken = tokens.refreshToken
             accounts[i].tokenExpiry = tokens.expiry
-            print("[MailDroid] loadAll: account \(accounts[i].email) - hasAccessToken=\(accounts[i].accessToken != nil), hasRefreshToken=\(accounts[i].refreshToken != nil), hasExpiry=\(accounts[i].tokenExpiry != nil)")
         }
 
         return accounts
